@@ -2,16 +2,23 @@ name: Deploy Blog App to EC2
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # --------------------------------------------------
+      # 1. Checkout repository
+      # --------------------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
+      # --------------------------------------------------
+      # 2. Configure AWS credentials on GitHub runner
+      # --------------------------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -19,50 +26,206 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
+      # --------------------------------------------------
+      # 3. Login GitHub runner Docker to ECR
+      # --------------------------------------------------
       - name: Login to ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # --------------------------------------------------
+      # 4. Get AWS Account ID
+      # --------------------------------------------------
       - name: Get AWS Account ID
         id: get-account-id
-        run: echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "account_id=$ACCOUNT_ID" >> "$GITHUB_OUTPUT"
+          echo "AWS Account ID: $ACCOUNT_ID"
 
+      # --------------------------------------------------
+      # 5. Build and push backend
+      # --------------------------------------------------
       - name: Build and push backend image
         env:
           ACCOUNT_ID: ${{ steps.get-account-id.outputs.account_id }}
         run: |
-          docker build -t $ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/blog-backend:latest ./backend
-          docker push $ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/blog-backend:latest
+          set -e
 
+          ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com"
+          IMAGE="$ECR_REGISTRY/blog-backend:latest"
+
+          echo "Building backend image..."
+          docker build -t "$IMAGE" ./backend
+
+          echo "Pushing backend image..."
+          docker push "$IMAGE"
+
+          echo "Backend image pushed successfully."
+
+      # --------------------------------------------------
+      # 6. Build and push frontend
+      # --------------------------------------------------
       - name: Build and push frontend image
         env:
           ACCOUNT_ID: ${{ steps.get-account-id.outputs.account_id }}
         run: |
-          docker build -t $ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/blog-frontend:latest ./frontend
-          docker push $ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/blog-frontend:latest
+          set -e
 
+          ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com"
+          IMAGE="$ECR_REGISTRY/blog-frontend:latest"
+
+          echo "Building frontend image..."
+          docker build -t "$IMAGE" ./frontend
+
+          echo "Pushing frontend image..."
+          docker push "$IMAGE"
+
+          echo "Frontend image pushed successfully."
+
+      # --------------------------------------------------
+      # 7. Deploy backend to EC2
+      # --------------------------------------------------
       - name: Deploy backend to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 30s
+          command_timeout: 10m
           script: |
-            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-            docker pull $ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/blog-backend:latest
-            docker stop blog-backend || true
-            docker rm blog-backend || true
-            docker run -d --name blog-backend -p 5000:5000 -v backend_data:/app/data -e NODE_ENV=production -e PORT=5000 $ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/blog-backend:latest
+            set -e
 
+            echo "======================================"
+            echo "Deploying backend"
+            echo "======================================"
+
+            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+            ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com"
+            IMAGE="$ECR_REGISTRY/blog-backend:latest"
+
+            echo "AWS Account: $ACCOUNT_ID"
+            echo "ECR Registry: $ECR_REGISTRY"
+            echo "Image: $IMAGE"
+
+            echo "Logging Docker into ECR..."
+
+            aws ecr get-login-password --region ap-south-1 | \
+              docker login \
+                --username AWS \
+                --password-stdin "$ECR_REGISTRY"
+
+            echo "Pulling backend image..."
+
+            docker pull "$IMAGE"
+
+            echo "Stopping old backend container..."
+
+            docker stop blog-backend || true
+
+            echo "Removing old backend container..."
+
+            docker rm blog-backend || true
+
+            echo "Starting new backend container..."
+
+            docker run -d \
+              --name blog-backend \
+              -p 5000:5000 \
+              -v backend_data:/app/data \
+              -e NODE_ENV=production \
+              -e PORT=5000 \
+              "$IMAGE"
+
+            echo "Waiting for backend container..."
+
+            sleep 5
+
+            echo "Backend container status:"
+
+            docker ps --filter "name=blog-backend"
+
+            echo "Backend logs:"
+
+            docker logs --tail 50 blog-backend
+
+            echo "Backend deployment completed successfully."
+
+      # --------------------------------------------------
+      # 8. Deploy frontend to EC2
+      # --------------------------------------------------
       - name: Deploy frontend to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 30s
+          command_timeout: 10m
           script: |
+            set -e
+
+            echo "======================================"
+            echo "Deploying frontend"
+            echo "======================================"
+
             ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-            docker pull $ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/blog-frontend:latest
+
+            ECR_REGISTRY="$ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com"
+            IMAGE="$ECR_REGISTRY/blog-frontend:latest"
+
+            echo "AWS Account: $ACCOUNT_ID"
+            echo "ECR Registry: $ECR_REGISTRY"
+            echo "Image: $IMAGE"
+
+            echo "Logging Docker into ECR..."
+
+            aws ecr get-login-password --region ap-south-1 | \
+              docker login \
+                --username AWS \
+                --password-stdin "$ECR_REGISTRY"
+
+            echo "Pulling frontend image..."
+
+            docker pull "$IMAGE"
+
+            echo "Stopping old frontend container..."
+
             docker stop blog-frontend || true
+
+            echo "Removing old frontend container..."
+
             docker rm blog-frontend || true
-            docker run -d --name blog-frontend -p 80:80 $ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/blog-frontend:latest
+
+            echo "Starting new frontend container..."
+
+            docker run -d \
+              --name blog-frontend \
+              -p 80:80 \
+              "$IMAGE"
+
+            echo "Waiting for frontend container..."
+
+            sleep 5
+
+            echo "Frontend container status:"
+
+            docker ps --filter "name=blog-frontend"
+
+            echo "Frontend logs:"
+
+            docker logs --tail 50 blog-frontend
+
+            echo "Frontend deployment completed successfully."
+
+      # --------------------------------------------------
+      # 9. Final verification
+      # --------------------------------------------------
+      - name: Deployment completed
+        run: |
+          echo "======================================"
+          echo "Deployment completed successfully!"
+          echo "======================================"
