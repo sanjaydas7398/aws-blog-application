@@ -5,7 +5,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: 512902042782.dkr.ecr.us-east-1.amazonaws.com/blog-backend:latest
+    image: 512902042782.dkr.ecr.ap-south-1.amazonaws.com/blog-backend:latest
     container_name: blog-backend
     restart: unless-stopped
     ports:
@@ -20,7 +20,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: 512902042782.dkr.ecr.us-east-1.amazonaws.com/blog-frontend:latest  # ✅ Correct indent
+    image: 512902042782.dkr.ecr.ap-south-1.amazonaws.com/blog-frontend:latest  # ✅ Correct indent
     container_name: blog-frontend
     restart: unless-stopped
     ports:
