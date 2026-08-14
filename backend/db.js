@@ -9,7 +9,7 @@ function ensureDbFile() {
   if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2));
   }
-}
+} 
 
 function readBlogs() {
   ensureDbFile();
