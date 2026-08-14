@@ -1,13 +1,15 @@
-name: Blog Web Applications
+name: Deploy Blog App to EC2
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout
@@ -20,5 +22,35 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Deploy static site to S3 bucket
-        run: aws s3 sync . s3://Demo-instances --delete
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY_BACKEND: blog-backend
+          REPOSITORY_FRONTEND: blog-frontend
+        run: |
+          # Get AWS account ID for ECR URI
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          
+          # Tag and push backend
+          docker compose build
+          docker tag blog-app-backend:latest $ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/blog-backend:latest
+          docker push $ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/blog-backend:latest
+          
+          # Tag and push frontend
+          docker tag blog-app-frontend:latest $ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/blog-frontend:latest
+          docker push $ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/blog-frontend:latest
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/blog-app
+            docker compose pull
+            docker compose up --build -d
