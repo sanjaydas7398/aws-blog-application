@@ -56,6 +56,14 @@ export default function BlogDetail() {
           ` · Updated ${formatDate(blog.updatedAt)}`}
       </div>
 
+      {blog.imageUrl && (
+        <img
+          src={blog.imageUrl}
+          alt={blog.title}
+          style={{ maxWidth: "100%", maxHeight: 400, marginTop: 16, borderRadius: 8 }}
+        />
+      )}
+
       <div className="post-detail-content">{blog.content}</div>
 
       {blog.tags && blog.tags.length > 0 && (

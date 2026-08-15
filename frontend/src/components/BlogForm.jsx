@@ -7,8 +7,17 @@ export default function BlogForm({ initialValues, onSubmit, submitLabel }) {
   const [tagsInput, setTagsInput] = useState(
     (initialValues?.tags || []).join(", ")
   );
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(initialValues?.imageUrl || "");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  function handleImageChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -26,7 +35,7 @@ export default function BlogForm({ initialValues, onSubmit, submitLabel }) {
 
     setSubmitting(true);
     try {
-      await onSubmit({ title, author, content, tags });
+      await onSubmit({ title, author, content, tags, imageFile });
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
@@ -64,6 +73,23 @@ export default function BlogForm({ initialValues, onSubmit, submitLabel }) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
         />
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Image</label>
+        <input
+          className="form-input"
+          type="file"
+          accept="image/*"
+          onChange={handleImageChange}
+        />
+        {imagePreview && (
+          <img
+            src={imagePreview}
+            alt="Preview"
+            style={{ marginTop: 10, maxWidth: "100%", maxHeight: 200 }}
+          />
+        )}
       </div>
 
       <div className="form-group">

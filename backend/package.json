@@ -1,7 +1,7 @@
 {
   "name": "blog-backend",
   "version": "1.0.0",
-  "description": "Simple blog API with CRUD using Express and a JSON file store",
+  "description": "Simple blog API with CRUD using Express, JSON file store, and S3 image uploads",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
@@ -9,8 +9,10 @@
     "dev": "node server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
     "uuid": "^9.0.1"
   }
 }

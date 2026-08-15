@@ -43,6 +43,13 @@ export default function BlogList() {
             <h2 className="entry-title">
               <Link to={`/posts/${blog.id}`}>{blog.title}</Link>
             </h2>
+            {blog.imageUrl && (
+              <img
+                src={blog.imageUrl}
+                alt={blog.title}
+                style={{ maxWidth: "100%", maxHeight: 180, marginTop: 8, borderRadius: 6 }}
+              />
+            )}
             <p className="entry-excerpt">{excerpt(blog.content)}</p>
             {blog.tags && blog.tags.length > 0 && (
               <div className="tag-row">

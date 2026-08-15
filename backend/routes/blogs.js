@@ -1,8 +1,24 @@
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
+const multer = require("multer");
 const { readBlogs, writeBlogs } = require("../db");
+const { uploadImageToS3 } = require("../s3");
 
 const router = express.Router();
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Unsupported image type"));
+    }
+  },
+});
 
 // GET /api/blogs - list all blogs (most recent first)
 router.get("/", (req, res) => {
@@ -24,11 +40,21 @@ router.get("/:id", (req, res) => {
 });
 
 // POST /api/blogs - create a new blog
-router.post("/", (req, res) => {
+router.post("/", upload.single("image"), async (req, res) => {
   const { title, author, content, tags } = req.body;
 
   if (!title || !title.trim() || !content || !content.trim()) {
     return res.status(400).json({ error: "Title and content are required" });
+  }
+
+  let imageUrl = null;
+  if (req.file) {
+    try {
+      imageUrl = await uploadImageToS3(req.file.buffer, req.file.originalname, req.file.mimetype);
+    } catch (err) {
+      console.error("S3 upload failed:", err);
+      return res.status(500).json({ error: "Failed to upload image" });
+    }
   }
 
   const blogs = readBlogs();
@@ -40,6 +66,7 @@ router.post("/", (req, res) => {
     author: author && author.trim() ? author.trim() : "Anonymous",
     content: content.trim(),
     tags: Array.isArray(tags) ? tags : [],
+    imageUrl,
     createdAt: now,
     updatedAt: now,
   };
@@ -51,7 +78,7 @@ router.post("/", (req, res) => {
 });
 
 // PUT /api/blogs/:id - update an existing blog
-router.put("/:id", (req, res) => {
+router.put("/:id", upload.single("image"), async (req, res) => {
   const { title, author, content, tags } = req.body;
   const blogs = readBlogs();
   const index = blogs.findIndex((b) => b.id === req.params.id);
@@ -65,12 +92,24 @@ router.put("/:id", (req, res) => {
   }
 
   const existing = blogs[index];
+  let imageUrl = existing.imageUrl;
+
+  if (req.file) {
+    try {
+      imageUrl = await uploadImageToS3(req.file.buffer, req.file.originalname, req.file.mimetype);
+    } catch (err) {
+      console.error("S3 upload failed:", err);
+      return res.status(500).json({ error: "Failed to upload image" });
+    }
+  }
+
   const updated = {
     ...existing,
     title: title.trim(),
     author: author && author.trim() ? author.trim() : existing.author,
     content: content.trim(),
     tags: Array.isArray(tags) ? tags : existing.tags,
+    imageUrl,
     updatedAt: new Date().toISOString(),
   };
 
