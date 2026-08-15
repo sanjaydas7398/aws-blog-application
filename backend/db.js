@@ -5,7 +5,7 @@ const path = require("path");
 
 const DB_FILE = path.join(__dirname, "data", "blogs.json");
 
-function ensureDbFile() {
+function ensureDbFile() { 
   if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2));
   }
