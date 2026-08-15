@@ -23,7 +23,6 @@ async function uploadImageToS3(fileBuffer, originalName, mimetype) {
     Key: key,
     Body: fileBuffer,
     ContentType: mimetype,
-    ACL: "public-read",
   });
 
   try {
