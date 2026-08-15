@@ -41,6 +41,7 @@ router.get("/:id", (req, res) => {
 
 // POST /api/blogs - create a new blog
 router.post("/", upload.single("image"), async (req, res) => {
+  console.log("POST /api/blogs received", req.body, req.file ? "has image" : "no image");
   const { title, author, content, tags } = req.body;
 
   if (!title || !title.trim() || !content || !content.trim()) {
@@ -83,6 +84,7 @@ router.post("/", upload.single("image"), async (req, res) => {
 
 // PUT /api/blogs/:id - update an existing blog
 router.put("/:id", upload.single("image"), async (req, res) => {
+  console.log("PUT /api/blogs/:id received", req.params.id, req.body, req.file ? "has image" : "no image");
   const { title, author, content, tags } = req.body;
   const blogs = readBlogs();
   const index = blogs.findIndex((b) => b.id === req.params.id);

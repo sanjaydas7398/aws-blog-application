@@ -29,20 +29,26 @@ export async function fetchBlog(id) {
 }
 
 export async function createBlog(payload) {
+  console.log("API createBlog called with:", payload);
   const form = buildFormData(payload);
+  console.log("FormData created, sending POST to", BASE_URL);
   const res = await fetch(BASE_URL, {
     method: "POST",
     body: form,
   });
+  console.log("Response status:", res.status);
   return handleResponse(res);
 }
 
 export async function updateBlog(id, payload) {
+  console.log("API updateBlog called for id:", id, payload);
   const form = buildFormData(payload);
+  console.log("FormData created, sending PUT to", `${BASE_URL}/${id}`);
   const res = await fetch(`${BASE_URL}/${id}`, {
     method: "PUT",
     body: form,
   });
+  console.log("Response status:", res.status);
   return handleResponse(res);
 }
 

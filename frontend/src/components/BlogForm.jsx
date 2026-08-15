@@ -33,10 +33,14 @@ export default function BlogForm({ initialValues, onSubmit, submitLabel }) {
       .map((t) => t.trim())
       .filter(Boolean);
 
+    const payload = { title, author, content, tags, imageFile };
+    console.log("Form submitting:", payload);
+
     setSubmitting(true);
     try {
-      await onSubmit({ title, author, content, tags, imageFile });
+      await onSubmit(payload);
     } catch (err) {
+      console.error("Form submit error:", err);
       setError(err.message);
       setSubmitting(false);
     }
