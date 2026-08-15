@@ -11,7 +11,7 @@ function ensureDbFile() {
   }
 } 
 
-function readBlogs() {
+function readBlogs() { 
   ensureDbFile();
   const raw = fs.readFileSync(DB_FILE, "utf-8");
   try {
