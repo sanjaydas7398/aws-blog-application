@@ -3,10 +3,6 @@ const { v4: uuidv4 } = require("uuid");
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION || "ap-south-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
 });
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME;
@@ -30,9 +26,15 @@ async function uploadImageToS3(fileBuffer, originalName, mimetype) {
     ACL: "public-read",
   });
 
-  await s3.send(command);
-
-  return `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || "ap-south-1"}.amazonaws.com/${key}`;
+  try {
+    await s3.send(command);
+    const url = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || "ap-south-1"}.amazonaws.com/${key}`;
+    console.log("S3 upload success:", url);
+    return url;
+  } catch (err) {
+    console.error("S3 upload failed:", err);
+    return null;
+  }
 }
 
 module.exports = { uploadImageToS3 };
