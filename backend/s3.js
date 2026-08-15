@@ -12,8 +12,11 @@ const s3 = new S3Client({
 const BUCKET_NAME = process.env.S3_BUCKET_NAME;
 
 async function uploadImageToS3(fileBuffer, originalName, mimetype) {
+  console.log("S3 upload attempt:", { BUCKET_NAME, originalName, mimetype, size: fileBuffer.length });
+
   if (!BUCKET_NAME) {
-    throw new Error("S3_BUCKET_NAME is not set");
+    console.log("S3 skipped: S3_BUCKET_NAME is not set");
+    return null;
   }
 
   const ext = originalName.split(".").pop() || "bin";

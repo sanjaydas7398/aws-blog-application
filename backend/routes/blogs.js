@@ -49,12 +49,16 @@ router.post("/", upload.single("image"), async (req, res) => {
 
   let imageUrl = null;
   if (req.file) {
+    console.log("Image received:", req.file.originalname, req.file.mimetype, req.file.size);
     try {
       imageUrl = await uploadImageToS3(req.file.buffer, req.file.originalname, req.file.mimetype);
+      console.log("S3 upload result:", imageUrl);
     } catch (err) {
       console.error("S3 upload failed:", err);
-      return res.status(500).json({ error: "Failed to upload image" });
+      imageUrl = null;
     }
+  } else {
+    console.log("No image file in request");
   }
 
   const blogs = readBlogs();
@@ -95,12 +99,16 @@ router.put("/:id", upload.single("image"), async (req, res) => {
   let imageUrl = existing.imageUrl;
 
   if (req.file) {
+    console.log("Image received:", req.file.originalname, req.file.mimetype, req.file.size);
     try {
       imageUrl = await uploadImageToS3(req.file.buffer, req.file.originalname, req.file.mimetype);
+      console.log("S3 upload result:", imageUrl);
     } catch (err) {
       console.error("S3 upload failed:", err);
-      return res.status(500).json({ error: "Failed to upload image" });
+      imageUrl = null;
     }
+  } else {
+    console.log("No image file in request");
   }
 
   const updated = {
